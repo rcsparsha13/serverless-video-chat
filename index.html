@@ -3,62 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Serverless WebRTC P2P Chat & Video</title>
+    <title>Advanced Serverless P2P Dashboard</title>
     <style>
-        body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; text-align: center; color: #333; }
-        .video-container { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; }
-        video { width: 45%; background: #222; border-radius: 8px; transform: scaleX(-1); }
-        #remoteVideo { transform: scaleX(1); }
-        textarea { width: 100%; height: 100px; margin: 10px 0; font-family: monospace; border: 1px solid #ccc; border-radius: 4px; }
-        .step { background: #f4f4f9; padding: 15px; margin: 15px 0; border-left: 5px solid #007bff; text-align: left; border-radius: 4px; }
-        button { padding: 10px 15px; font-weight: bold; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px; }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --dark: #343a40; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1300px; margin: 0 auto; padding: 20px; background: #f8f9fa; color: #333; }
+        h1 { text-align: center; color: var(--dark); margin-bottom: 25px; font-size: 28px; }
         
-        /* Chat Dashboard UI */
-        .chat-container { border: 1px solid #ddd; border-radius: 8px; background: #fff; margin-top: 20px; text-align: left; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .chat-header { background: #343a40; color: white; padding: 10px 15px; font-weight: bold; border-top-left-radius: 7px; border-top-right-radius: 7px; }
-        #chatBox { height: 200px; overflow-y: auto; padding: 15px; background: #fdfdfd; font-size: 14px; border-bottom: 1px solid #ddd; }
-        .chat-input-area { display: flex; padding: 10px; gap: 10px; background: #f8f9fa; border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; }
-        #messageInput { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        #sendMsgBtn { background: #28a745; }
-        #sendMsgBtn:hover { background: #218838; }
-        .msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 4px; max-width: 80%; width: fit-content; }
-        .msg.local { background: #e1ffc7; margin-left: auto; text-align: right; }
-        .msg.remote { background: #f1f0f0; margin-right: auto; text-align: left; }
+        /* Grid Layout for Dashboard - Expanded for larger media presentation */
+        .dashboard-grid { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 20px; margin-bottom: 20px; }
+        .panel { background: white; border-radius: 8px; padding: 22px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #dee2e6; }
+        .panel-title { font-size: 16px; font-weight: bold; margin-top: 0; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #f1f1f1; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* INCREASED VIDEO FRAMES: Large side-by-side layout */
+        .video-streams-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .video-box { position: relative; background: #111; border-radius: 8px; overflow: hidden; aspect-ratio: 16/9; box-shadow: inset 0 0 20px rgba(0,0,0,0.6); }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #remoteVideo { transform: scaleX(1); }
+        .video-label { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 4px; font-size: 13px; font-weight: 500; letter-spacing: 0.5px; }
+
+        /* Buttons & Inputs */
+        button { padding: 11px 18px; font-weight: 600; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s, transform 0.1s; font-size: 14px; }
+        button:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #c82333; }
+        button:disabled { background: #e9ecef !important; color: #adb5bd !important; cursor: not-allowed; transform: none !important; }
+        
+        textarea { width: 100%; height: 95px; box-sizing: border-box; font-family: monospace; font-size: 11px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; resize: none; margin-bottom: 8px; }
+        input[type="text"] { width: 100%; padding: 11px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; }
+
+        /* Stats Panel */
+        .status-badge { padding: 4px 8px; border-radius: 20px; font-size: 12px; font-weight: bold; background: #eee; text-transform: uppercase; }
+        .status-connected { background: #d4edda; color: #155724; }
+        
+        /* Chat box styling */
+        #chatBox { height: 210px; overflow-y: auto; background: #fdfdfd; border: 1px solid #ced4da; border-radius: 4px; padding: 12px; margin-bottom: 10px; }
+        .msg { margin-bottom: 8px; padding: 8px 14px; border-radius: 12px; max-width: 80%; width: fit-content; font-size: 14px; line-height: 1.4; }
+        .msg.local { background: #e1ffc7; margin-left: auto; border-bottom-right-radius: 2px; }
+        .msg.remote { background: #f1f0f0; margin-right: auto; border-bottom-left-radius: 2px; }
+        .chat-input-row { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>Serverless P2P Video & Text Chat</h1>
+    <h1>Computer Networks: Serverless WebRTC Framework</h1>
 
-    <div class="video-container">
-        <div><h3>Local Video (You)</h3><video id="localVideo" autoplay playsinline muted></video></div>
-        <div><h3>Remote Video (Peer)</h3><video id="remoteVideo" autoplay playsinline></video></div>
-    </div>
-
-    <div class="chat-container">
-        <div class="chat-header">P2P Secure DataChannel Chat</div>
-        <div id="chatBox">
-            <div style="color: #888; font-style: italic;">Messages will appear here once P2P connection is established...</div>
+    <div class="panel" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+            <button id="startBtn" class="btn-primary">1. Turn On Hardware</button>
+            <button id="createOfferBtn" class="btn-primary" disabled>2. Host (Create Offer)</button>
         </div>
-        <div class="chat-input-area">
-            <input type="text" id="messageInput" placeholder="Type a secure P2P message..." disabled>
-            <button id="sendMsgBtn" disabled>Send Message</button>
+        <div>
+            <button id="hangUpBtn" class="btn-danger" disabled>🛑 Hang Up / Terminate</button>
         </div>
     </div>
 
-    <div class="step">
-        <h3>Step 1: Initialize Camera & Choose Role</h3>
-        <button id="startBtn">1. Start Camera</button>
-        <button id="createOfferBtn" disabled>2. Act as Host (Create Offer)</button>
-    </div>
+    <div class="dashboard-grid">
+        <div class="panel">
+            <div class="panel-title">High-Definition Interactive Media Streams</div>
+            <div class="video-streams-row">
+                <div class="video-box">
+                    <video id="localVideo" autoplay playsinline muted></video>
+                    <div class="video-label">🟢 Local Feed (You)</div>
+                </div>
+                <div class="video-box">
+                    <video id="remoteVideo" autoplay playsinline></video>
+                    <div class="video-label">🔵 Remote Feed (Peer)</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; font-size: 13.5px; background: #f1f3f5; padding: 12px; border-radius: 6px; line-height: 1.6;">
+                <strong>WebRTC Socket Architecture Monitor:</strong><br>
+                • ICE Connection State: <span id="connState" class="status-badge">idle</span>
+                <span style="margin-index: 15px;">|</span> 
+                • Candidate Gathering Engine: <span id="iceState" class="status-badge">idle</span>
+            </div>
+        </div>
 
-    <div class="step">
-        <h3>Step 2: Copy / Paste Handshake Data</h3>
-        <label for="sdpData">SDP Handshake Text:</label>
-        <textarea id="sdpData" placeholder="SDP data will appear here or paste peer data here..."></textarea>
-        <button id="acceptDataBtn" disabled>3. Accept/Process Paste</button>
+        <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div class="panel-title">
+                    Session Description Handshake (SDP)
+                    <button id="copyBtn" style="padding: 3px 10px; font-size: 11px;" class="btn-primary" disabled>Copy Token</button>
+                </div>
+                <textarea id="sdpData" placeholder="Raw JSON topology payloads compile here..."></textarea>
+                <button id="acceptDataBtn" class="btn-success" style="width: 100%; margin-bottom: 15px;" disabled>3. Parse & Inject Pasted JSON</button>
+            </div>
+
+            <div>
+                <div class="panel-title">Direct P2P DataChannel Chat</div>
+                <div id="chatBox">
+                    <div style="color: #999; font-style: italic; font-size: 13px;">Establish transport bindings to initialize secure text routing...</div>
+                </div>
+                <div class="chat-input-row">
+                    <input type="text" id="messageInput" placeholder="Type a secure message..." disabled>
+                    <button id="sendMsgBtn" class="btn-success" disabled>Send</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
