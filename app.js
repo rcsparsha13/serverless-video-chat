@@ -33,15 +33,19 @@ function appendMessage(text, side) {
 }
 
 // Update Network Diagnostics Dashboard
+// Update Network Diagnostics Dashboard Safely
 function updateNetworkUIStats() {
     if (!peerConnection) return;
     
-    connStateStatus.innerText = peerConnection.connectionState;
-    if (peerConnection.connectionState === 'connected') {
+    const state = peerConnection.connectionState;
+    connStateStatus.innerText = state;
+    
+    if (state === 'connected') {
         connStateStatus.className = "status-badge status-connected";
-    } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'closed') {
+    } else if (state === 'failed') {
         connStateStatus.className = "status-badge";
-        hangUp();
+        console.log("Connection failed state detected.");
+        // We removed the automatic hangUp() call here so it stops auto-wiping your screens!
     } else {
         connStateStatus.className = "status-badge";
     }
