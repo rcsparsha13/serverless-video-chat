@@ -5,41 +5,58 @@ const configuration = {
 let peerConnection;
 let localStream;
 let remoteStream;
-let dataChannel; // Variable to store the P2P data track
+let dataChannel;
 
-// DOM Elements
+// UI Handlers
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const startBtn = document.getElementById('startBtn');
 const createOfferBtn = document.getElementById('createOfferBtn');
 const acceptDataBtn = document.getElementById('acceptDataBtn');
+const hangUpBtn = document.getElementById('hangUpBtn');
+const copyBtn = document.getElementById('copyBtn');
 const sdpData = document.getElementById('sdpData');
 
-// Chat UI Elements
+// Diagnostics & Chat Handlers
+const connStateStatus = document.getElementById('connState');
+const iceStateStatus = document.getElementById('iceState');
 const chatBox = document.getElementById('chatBox');
 const messageInput = document.getElementById('messageInput');
 const sendMsgBtn = document.getElementById('sendMsgBtn');
 
-// Helper function to display messages in the UI
 function appendMessage(text, side) {
     const msgDiv = document.createElement('div');
     msgDiv.classList.add('msg', side);
     msgDiv.innerText = text;
     chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Set up event listeners on the Data Channel
+// Update Network Diagnostics Dashboard
+function updateNetworkUIStats() {
+    if (!peerConnection) return;
+    
+    connStateStatus.innerText = peerConnection.connectionState;
+    if (peerConnection.connectionState === 'connected') {
+        connStateStatus.className = "status-badge status-connected";
+    } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'closed') {
+        connStateStatus.className = "status-badge";
+        hangUp();
+    } else {
+        connStateStatus.className = "status-badge";
+    }
+
+    iceStateStatus.innerText = peerConnection.iceGatheringState;
+}
+
 function setupDataChannelListeners() {
     dataChannel.onopen = () => {
-        console.log("Data channel is open and ready!");
         messageInput.disabled = false;
         sendMsgBtn.disabled = false;
-        chatBox.innerHTML = `<div style="color: green; font-weight: bold;">✔ Direct P2P Data Channel Connected! Ready to chat.</div>`;
+        chatBox.innerHTML = `<div style="color: green; font-weight: bold; font-size:13px;">✔ Direct SCTP Data Pipeline Secured.</div>`;
     };
 
     dataChannel.onclose = () => {
-        console.log("Data channel closed.");
         messageInput.disabled = true;
         sendMsgBtn.disabled = true;
     };
@@ -49,7 +66,22 @@ function setupDataChannelListeners() {
     };
 }
 
-// 1. Initialize Camera and Microphone
+// Wire state machines into tracking UI
+function setupPeerConnectionListeners() {
+    peerConnection.onconnectionstatechange = () => updateNetworkUIStats();
+    peerConnection.onicegatheringstatechange = () => updateNetworkUIStats();
+
+    peerConnection.ontrack = (event) => {
+        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+    };
+
+    peerConnection.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        setupDataChannelListeners();
+    };
+}
+
+// 1. Initialize Hardware Framework
 startBtn.onclick = async () => {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -60,37 +92,28 @@ startBtn.onclick = async () => {
         remoteVideo.srcObject = remoteStream;
 
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-        peerConnection.ontrack = (event) => {
-            event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
-        };
-
-        // PEER ROLE: Listen for the data channel opened by the Host
-        peerConnection.ondatachannel = (event) => {
-            dataChannel = event.channel;
-            setupDataChannelListeners();
-        };
+        setupPeerConnectionListeners();
 
         createOfferBtn.disabled = false;
         acceptDataBtn.disabled = false;
+        hangUpBtn.disabled = false;
         startBtn.disabled = true;
-        console.log("Camera and PeerConnection structure initialized.");
+        updateNetworkUIStats();
     } catch (err) {
-        alert("Could not access camera/mic. Make sure you use localhost or HTTPS!");
-        console.error(err);
+        alert("Camera initialization failed. Ensure you are utilizing an active HTTPS environment!");
     }
 };
 
-// 2. HOST ROLE: Create an Offer and establish Data Channel structure
+// 2. Generate Host Configuration Architecture
 createOfferBtn.onclick = async () => {
-    // Host initializes the data channel explicitly before generating the offer
     dataChannel = peerConnection.createDataChannel("textChat");
     setupDataChannelListeners();
 
     peerConnection.onicecandidate = (event) => {
         if (!event.candidate) {
             sdpData.value = JSON.stringify(peerConnection.localDescription);
-            alert("Offer SDP fully generated! Copy it and send it to your partner.");
+            copyBtn.disabled = false;
+            alert("SDP Offer payload compiled fully.");
         }
     };
 
@@ -98,10 +121,10 @@ createOfferBtn.onclick = async () => {
     await peerConnection.setLocalDescription(offer);
 };
 
-// 3. PROCESS PASTE (Handles receiving an Offer OR receiving an Answer)
+// 3. Process SDP Bindings
 acceptDataBtn.onclick = async () => {
     const rawInput = sdpData.value.trim();
-    if (!rawInput) return alert("Please paste data into the textbox first!");
+    if (!rawInput) return alert("Pasted metadata context is empty!");
 
     try {
         const parsedData = JSON.parse(rawInput);
@@ -112,7 +135,8 @@ acceptDataBtn.onclick = async () => {
             peerConnection.onicecandidate = (event) => {
                 if (!event.candidate) {
                     sdpData.value = JSON.stringify(peerConnection.localDescription);
-                    alert("Answer SDP generated! Copy it and send it back to the Host.");
+                    copyBtn.disabled = false;
+                    alert("SDP Answer payload ready to pass back.");
                 }
             };
             
@@ -121,15 +145,20 @@ acceptDataBtn.onclick = async () => {
         } 
         else if (parsedData.type === 'answer') {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(parsedData));
-            alert("Answer applied! Direct P2P video stream and chat should start now.");
         }
     } catch (e) {
-        alert("Invalid SDP Data. Please make sure you copied the entire text string.");
-        console.error(e);
+        alert("Payload analysis failure. Confirm absolute matching of block content.");
     }
 };
 
-// 4. Send message handler
+// Copy Utility Feature
+copyBtn.onclick = () => {
+    sdpData.select();
+    navigator.clipboard.writeText(sdpData.value);
+    alert("Handshake payload written to device clipboard!");
+};
+
+// Chat Transmission Logic
 function sendMessage() {
     const msg = messageInput.value.trim();
     if (msg && dataChannel && dataChannel.readyState === "open") {
@@ -138,8 +167,50 @@ function sendMessage() {
         messageInput.value = "";
     }
 }
-
 sendMsgBtn.onclick = sendMessage;
-messageInput.onkeypress = (e) => {
-    if (e.key === 'Enter') sendMessage();
-};
+messageInput.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+
+// 🛑 Graceful Teardown Engine (Hang Up Feature)
+function hangUp() {
+    console.log("Terminating peer tracks and structural pipelines cleanly.");
+
+    // 1. Stop processing media frames completely across inputs
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+
+    // 2. Erase bindings to data pipes
+    if (dataChannel) {
+        dataChannel.close();
+    }
+
+    // 3. Terminate main hardware socket state
+    if (peerConnection) {
+        peerConnection.close();
+    }
+
+    // 4. Clean out video viewport references
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
+
+    // 5. Reset internal dashboard states
+    connStateStatus.innerText = "closed";
+    connStateStatus.className = "status-badge";
+    iceStateStatus.innerText = "closed";
+    iceStateStatus.className = "status-badge";
+    
+    // 6. Reset UI interactivity variables
+    sdpData.value = "";
+    chatBox.innerHTML = `<div style="color: #999; font-style: italic; font-size: 13px;">Connection terminated cleanly.</div>`;
+    
+    startBtn.disabled = false;
+    createOfferBtn.disabled = true;
+    acceptDataBtn.disabled = true;
+    hangUpBtn.disabled = true;
+    copyBtn.disabled = true;
+    messageInput.disabled = true;
+    sendMsgBtn.disabled = true;
+
+    alert("P2P instance socket wiped and media resources released successfully!");
+}
+hangUpBtn.onclick = hangUp;
